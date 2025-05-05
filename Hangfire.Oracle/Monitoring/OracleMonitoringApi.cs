@@ -156,7 +156,7 @@ namespace Hangfire.Oracle.Core.Monitoring
           WHERE KEY = :KEY
          UNION ALL
          SELECT VALUE
-           FROM HF_AGGREGATED_COUNTER
+           FROM {prefix}HF_AGGREGATED_COUNTER
           WHERE KEY = :KEY)
 ";
 

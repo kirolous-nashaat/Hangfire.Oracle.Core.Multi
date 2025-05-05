@@ -94,7 +94,7 @@ UPDATE {prefix}HF_JOB_QUEUE
         public void Enqueue(IDbConnection connection, string queue, string jobId)
         {
             Logger.TraceFormat("Enqueue JobId={0} Queue={1}", jobId, queue);
-            connection.Execute($"INSERT INTO {prefix}HF_JOB_QUEUE (ID, JOB_ID, QUEUE) VALUES (HF_SEQUENCE.NEXTVAL, :JOB_ID, :QUEUE)", new { JOB_ID = jobId, QUEUE = queue });
+            connection.Execute($"INSERT INTO {prefix}HF_JOB_QUEUE (ID, JOB_ID, QUEUE) VALUES ({prefix}HF_SEQUENCE.NEXTVAL, :JOB_ID, :QUEUE)", new { JOB_ID = jobId, QUEUE = queue });
         }
     }
 }

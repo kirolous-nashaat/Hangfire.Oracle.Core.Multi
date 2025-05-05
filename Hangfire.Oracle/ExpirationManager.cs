@@ -72,7 +72,7 @@ namespace Hangfire.Oracle.Core
                                 var query = $"DELETE FROM {tuple.Item1} WHERE EXPIRE_AT < :NOW AND ROWNUM <= :COUNT";
                                 if (tuple.Item2)
                                 {
-                                    query = $"DELETE FROM {tuple.Item1} WHERE JOB_ID IN (SELECT ID FROM HF_JOB WHERE EXPIRE_AT < :NOW AND ROWNUM <= :COUNT)";
+                                    query = $"DELETE FROM {tuple.Item1} WHERE JOB_ID IN (SELECT ID FROM {prefix}HF_JOB WHERE EXPIRE_AT < :NOW AND ROWNUM <= :COUNT)";
                                 }
                                 removedCount = connection.Execute(query, new { NOW = DateTime.UtcNow, COUNT = NumberOfRecordsInSinglePass });
                             }
