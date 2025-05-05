@@ -53,8 +53,8 @@ namespace Hangfire.Oracle.Core
             PrepareSchemaIfNecessary(options);
 
             InitializeQueueProviders();
-        }       
-     
+        }
+
         public OracleStorage(Func<IDbConnection> connectionFactory, OracleStorageOptions options)
         {
             _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -71,7 +71,7 @@ namespace Hangfire.Oracle.Core
             {
                 using (var connection = CreateAndOpenConnection())
                 {
-                    OracleObjectsInstaller.Install(connection, options.SchemaName);
+                    OracleObjectsInstaller.Install(connection, options.SchemaName, _options.TablePrefix);
                 }
             }
         }
@@ -85,8 +85,8 @@ namespace Hangfire.Oracle.Core
         public override IEnumerable<IServerComponent> GetComponents()
 #pragma warning restore 618
         {
-            yield return new ExpirationManager(this, _options.JobExpirationCheckInterval);
-            yield return new CountersAggregator(this, _options.CountersAggregateInterval);
+            yield return new ExpirationManager(this, _options.JobExpirationCheckInterval, _options);
+            yield return new CountersAggregator(this, _options.CountersAggregateInterval, _options.TablePrefix);
         }
 
         public override void WriteOptionsToLog(ILog logger)
@@ -149,12 +149,12 @@ namespace Hangfire.Oracle.Core
 
         public override IMonitoringApi GetMonitoringApi()
         {
-            return new OracleMonitoringApi(this, _options.DashboardJobListLimit);
+            return new OracleMonitoringApi(this, _options.DashboardJobListLimit, _options.TablePrefix);
         }
 
         public override IStorageConnection GetConnection()
         {
-            return new OracleStorageConnection(this);
+            return new OracleStorageConnection(this, _options);
         }
 
         private static bool IsConnectionString(string nameOrConnectionString)

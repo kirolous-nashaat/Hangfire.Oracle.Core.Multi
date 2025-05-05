@@ -4,7 +4,7 @@ using System.Data.Common;
 using System.Threading;
 
 using Dapper;
-
+using Hangfire.Annotations;
 using Hangfire.Logging;
 using Hangfire.Server;
 
@@ -21,36 +21,39 @@ namespace Hangfire.Oracle.Core
         private static readonly TimeSpan DelayBetweenPasses = TimeSpan.FromSeconds(1);
         private const int NumberOfRecordsInSinglePass = 1000;
 
-        private static readonly List<Tuple<string, bool>> TablesToProcess = new List<Tuple<string, bool>>
+        private static List<Tuple<string, bool>> TablesToProcess(string prefix) => new List<Tuple<string, bool>>
         {
             // This list must be sorted in dependency order 
-            new Tuple<string, bool>("HF_JOB_PARAMETER", true),
-            new Tuple<string, bool>("HF_JOB_QUEUE", true),
-            new Tuple<string, bool>("HF_JOB_STATE", true),
-            new Tuple<string, bool>("HF_AGGREGATED_COUNTER", false),
-            new Tuple<string, bool>("HF_LIST", false),
-            new Tuple<string, bool>("HF_SET", false),
-            new Tuple<string, bool>("HF_HASH", false),
-            new Tuple<string, bool>("HF_JOB", false)
+            new Tuple<string, bool>(prefix + "HF_JOB_PARAMETER", true),
+            new Tuple<string, bool>(prefix + "HF_JOB_QUEUE", true),
+            new Tuple<string, bool>(prefix + "HF_JOB_STATE", true),
+            new Tuple<string, bool>(prefix + "HF_AGGREGATED_COUNTER", false),
+            new Tuple<string, bool>(prefix + "HF_LIST", false),
+            new Tuple<string, bool>(prefix + "HF_SET", false),
+            new Tuple<string, bool>(prefix + "HF_HASH", false),
+            new Tuple<string, bool>(prefix + "HF_JOB", false)
         };
 
         private readonly OracleStorage _storage;
         private readonly TimeSpan _checkInterval;
+        private readonly string prefix;
 
-        public ExpirationManager(OracleStorage storage)
-            : this(storage, TimeSpan.FromHours(1))
+        public ExpirationManager(OracleStorage storage, OracleStorageOptions options)
+            : this(storage, TimeSpan.FromHours(1), options)
         {
+            this.prefix = options.TablePrefix;
         }
 
-        public ExpirationManager(OracleStorage storage, TimeSpan checkInterval)
+        public ExpirationManager(OracleStorage storage, TimeSpan checkInterval, OracleStorageOptions options)
         {
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _checkInterval = checkInterval;
+            this.prefix = options.TablePrefix;
         }
 
         public void Execute(CancellationToken cancellationToken)
         {
-            foreach (var tuple in TablesToProcess)
+            foreach (var tuple in TablesToProcess(prefix))
             {
                 Logger.DebugFormat("Removing outdated records from table '{0}'...", tuple.Item1);
 
@@ -64,7 +67,7 @@ namespace Hangfire.Oracle.Core
                         {
                             Logger.DebugFormat("Deleting records from table: {0}", tuple.Item1);
 
-                            using (new OracleDistributedLock(connection, DistributedLockKey, DefaultLockTimeout, cancellationToken).Acquire())
+                            using (new OracleDistributedLock(connection, DistributedLockKey, DefaultLockTimeout, cancellationToken, prefix).Acquire())
                             {
                                 var query = $"DELETE FROM {tuple.Item1} WHERE EXPIRE_AT < :NOW AND ROWNUM <= :COUNT";
                                 if (tuple.Item2)
@@ -99,5 +102,6 @@ namespace Hangfire.Oracle.Core
         {
             return GetType().ToString();
         }
+
     }
 }

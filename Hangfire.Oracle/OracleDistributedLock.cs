@@ -17,21 +17,21 @@ namespace Hangfire.Oracle.Core
         private readonly CancellationToken _cancellationToken;
 
         private const int DelayBetweenPasses = 100;
-
-        public OracleDistributedLock(OracleStorage storage, string resource, TimeSpan timeout)
-            : this(storage.CreateAndOpenConnection(), resource, timeout)
+        private readonly string prefix;
+        public OracleDistributedLock(OracleStorage storage, string resource, TimeSpan timeout, string prefix)
+            : this(storage.CreateAndOpenConnection(), resource, timeout, prefix)
         {
             _storage = storage;
         }
 
         private readonly IDbConnection _connection;
 
-        public OracleDistributedLock(IDbConnection connection, string resource, TimeSpan timeout)
-            : this(connection, resource, timeout, new CancellationToken())
+        public OracleDistributedLock(IDbConnection connection, string resource, TimeSpan timeout, string prefix)
+            : this(connection, resource, timeout, new CancellationToken(), prefix)
         {
         }
 
-        public OracleDistributedLock(IDbConnection connection, string resource, TimeSpan timeout, CancellationToken cancellationToken)
+        public OracleDistributedLock(IDbConnection connection, string resource, TimeSpan timeout, CancellationToken cancellationToken, string prefix)
         {
             Logger.TraceFormat("OracleDistributedLock resource={0}, timeout={1}", resource, timeout);
 
@@ -40,6 +40,7 @@ namespace Hangfire.Oracle.Core
             _connection = connection;
             _cancellationToken = cancellationToken;
             _start = DateTime.UtcNow;
+            this.prefix = prefix;
         }
 
         public string Resource { get; }
@@ -49,13 +50,13 @@ namespace Hangfire.Oracle.Core
             return
                 _connection
                     .Execute(
-                        @" 
-INSERT INTO HF_DISTRIBUTED_LOCK (""RESOURCE"", CREATED_AT)
+                        $@" 
+INSERT INTO {prefix}HF_DISTRIBUTED_LOCK (""RESOURCE"", CREATED_AT)
                 (SELECT :RES, :NOW
                 FROM DUAL
                 WHERE NOT EXISTS
             (SELECT ""RESOURCE"", CREATED_AT
-                FROM HF_DISTRIBUTED_LOCK
+                FROM {prefix}HF_DISTRIBUTED_LOCK
                 WHERE ""RESOURCE"" = :RES AND CREATED_AT > :EXPIRED))
 ", 
                         new
@@ -109,8 +110,8 @@ INSERT INTO HF_DISTRIBUTED_LOCK (""RESOURCE"", CREATED_AT)
 
             _connection
                 .Execute(
-                    @"
-DELETE FROM HF_DISTRIBUTED_LOCK 
+                    $@"
+DELETE FROM {prefix}HF_DISTRIBUTED_LOCK 
  WHERE ""RESOURCE"" = :RES
 ",
                     new

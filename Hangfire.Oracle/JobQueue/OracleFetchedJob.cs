@@ -15,12 +15,13 @@ namespace Hangfire.Oracle.Core.JobQueue
 
         private readonly OracleStorage _storage;
         private readonly IDbConnection _connection;
+        private readonly string prefix;
         private readonly int _id;
         private bool _removedFromQueue;
         private bool _requeued;
         private bool _disposed;
 
-        public OracleFetchedJob(OracleStorage storage, IDbConnection connection, FetchedJob fetchedJob)
+        public OracleFetchedJob(OracleStorage storage, IDbConnection connection, FetchedJob fetchedJob, string prefix)
         {
             if (fetchedJob == null)
             {
@@ -29,6 +30,7 @@ namespace Hangfire.Oracle.Core.JobQueue
 
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _connection = connection ?? throw new ArgumentNullException(nameof(connection));
+            this.prefix = prefix;
             _id = fetchedJob.Id;
             JobId = fetchedJob.JobId.ToString(CultureInfo.InvariantCulture);
             Queue = fetchedJob.Queue;
@@ -55,7 +57,7 @@ namespace Hangfire.Oracle.Core.JobQueue
 
             //todo: unit test
             _connection.Execute(
-                "DELETE FROM HF_JOB_QUEUE " +
+                $"DELETE FROM {prefix}HF_JOB_QUEUE " +
                 " WHERE ID = :ID",
                 new
                 {
@@ -71,7 +73,7 @@ namespace Hangfire.Oracle.Core.JobQueue
 
             //todo: unit test
             _connection.Execute(
-                "UPDATE HF_JOB_QUEUE " +
+                $"UPDATE {prefix}HF_JOB_QUEUE " +
                 "   SET FETCHED_AT = null " +
                 " WHERE ID = :ID",
                 new

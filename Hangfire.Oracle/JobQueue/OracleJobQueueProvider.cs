@@ -20,7 +20,7 @@ namespace Hangfire.Oracle.Core.JobQueue
             }
 
             _jobQueue = new OracleJobQueue(storage, options);
-            _monitoringApi = new OracleJobQueueMonitoringApi(storage);
+            _monitoringApi = new OracleJobQueueMonitoringApi(storage, options.TablePrefix);
         }
 
         public IPersistentJobQueue GetJobQueue()

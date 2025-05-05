@@ -13,11 +13,11 @@ namespace Hangfire.Oracle.Core
     public static class OracleObjectsInstaller
     {
         private static readonly ILog Log = LogProvider.GetLogger(typeof(OracleStorage));
-        public static void Install(IDbConnection connection, string schemaName)
+        public static void Install(IDbConnection connection, string schemaName, string prefix)
         {
             if (connection == null) throw new ArgumentNullException(nameof(connection));
 
-            if (TablesExists(connection, schemaName))
+            if (TablesExists(connection, schemaName, prefix))
             {
                 Log.Info("DB tables already exist. Exit install");
                 return;
@@ -33,7 +33,7 @@ namespace Hangfire.Oracle.Core
     Log.Info("Hangfire SQL objects installed.");
         }
 
-        private static bool TablesExists(IDbConnection connection, string schemaName)
+        private static bool TablesExists(IDbConnection connection, string schemaName, string prefix)
         {
             string tableExistsQuery;
 
@@ -41,14 +41,14 @@ namespace Hangfire.Oracle.Core
             {
                 tableExistsQuery = $@"SELECT TABLE_NAME
 FROM all_tables
-WHERE OWNER = '{schemaName}' AND TABLE_NAME LIKE 'HF_%'
+WHERE OWNER = '{schemaName}' AND TABLE_NAME LIKE '{prefix}HF_%'
 ORDER BY TABLE_NAME";
             }
             else
             {
-                tableExistsQuery = @"SELECT TABLE_NAME
+                tableExistsQuery = $@"SELECT TABLE_NAME
 FROM all_tables
-WHERE TABLE_NAME LIKE 'HF_%'
+WHERE TABLE_NAME LIKE '{prefix}HF_%'
 ORDER BY TABLE_NAME";
             }
 

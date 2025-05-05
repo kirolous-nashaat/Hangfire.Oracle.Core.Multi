@@ -52,5 +52,6 @@ namespace Hangfire.Oracle.Core
         public TimeSpan InvisibilityTimeout { get; set; }
 
         public string SchemaName { get; set; }
+        public string TablePrefix { get; set; } = "";
     }
 }

@@ -16,10 +16,12 @@ namespace Hangfire.Oracle.Core.JobQueue
 
         private readonly OracleStorage _storage;
         private readonly OracleStorageOptions _options;
+        private readonly string prefix;
         public OracleJobQueue(OracleStorage storage, OracleStorageOptions options)
         {
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _options = options ?? throw new ArgumentNullException(nameof(options));
+            this.prefix = _options.TablePrefix;
         }
 
         public IFetchedJob Dequeue(string[] queues, CancellationToken cancellationToken)
@@ -37,12 +39,12 @@ namespace Hangfire.Oracle.Core.JobQueue
 
                 try
                 {
-                    using (new OracleDistributedLock(_storage, "JobQueue", TimeSpan.FromSeconds(30)))
+                    using (new OracleDistributedLock(_storage, "JobQueue", TimeSpan.FromSeconds(30), prefix))
                     {
                         var token = Guid.NewGuid().ToString();
 
-                        var nUpdated = connection.Execute(@"
-UPDATE HF_JOB_QUEUE
+                        var nUpdated = connection.Execute($@"
+UPDATE {prefix}HF_JOB_QUEUE
    SET FETCHED_AT = SYS_EXTRACT_UTC (SYSTIMESTAMP), FETCH_TOKEN = :FETCH_TOKEN
  WHERE (FETCHED_AT IS NULL OR FETCHED_AT < SYS_EXTRACT_UTC (SYSTIMESTAMP) + numToDSInterval(:TIMEOUT, 'second' )) AND (QUEUE IN :QUEUES) AND ROWNUM = 1
 ",
@@ -58,9 +60,9 @@ UPDATE HF_JOB_QUEUE
                             fetchedJob =
                                 connection
                                     .QuerySingle<FetchedJob>(
-                                        @"
+                                        $@"
  SELECT ID as Id, JOB_ID as JobId, QUEUE as Queue
-   FROM HF_JOB_QUEUE
+   FROM {prefix}HF_JOB_QUEUE
   WHERE FETCH_TOKEN = :FETCH_TOKEN
 ",
                                         new
@@ -86,13 +88,13 @@ UPDATE HF_JOB_QUEUE
                 }
             } while (fetchedJob == null);
 
-            return new OracleFetchedJob(_storage, connection, fetchedJob);
+            return new OracleFetchedJob(_storage, connection, fetchedJob, prefix);
         }
 
         public void Enqueue(IDbConnection connection, string queue, string jobId)
         {
             Logger.TraceFormat("Enqueue JobId={0} Queue={1}", jobId, queue);
-            connection.Execute("INSERT INTO HF_JOB_QUEUE (ID, JOB_ID, QUEUE) VALUES (HF_SEQUENCE.NEXTVAL, :JOB_ID, :QUEUE)", new { JOB_ID = jobId, QUEUE = queue });
+            connection.Execute($"INSERT INTO {prefix}HF_JOB_QUEUE (ID, JOB_ID, QUEUE) VALUES (HF_SEQUENCE.NEXTVAL, :JOB_ID, :QUEUE)", new { JOB_ID = jobId, QUEUE = queue });
         }
     }
 }
